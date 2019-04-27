@@ -1,10 +1,17 @@
+#define is_even(n) ((n == ((n >> 1) << 1))? 1 : 0)
+
+#define parent_index(index) ((((is_even(index+1))? (index + 1 ) : (index)) << 1) -1)
+
+#define right_child_index(index) ((index + 1) >> 1)
+
+#define left_child_index(index) (right_child_index(index) -1)
+
 typedef void b_tree;
 
-//Initialized a binary tree with as many levels as possible
-b_tree btree_init(void* mem, unsigned length);
+//Initializes a binary tree with as many levels as possible
+b_tree* b_tree_init(void* mem, unsigned length);
 
-//Marks the chunk of memory represented by <index> as occupied
-btree_lock(unsigned index);
+//Puts <val> in the tree at index <index>
+void b_tree_put(b_tree* tree, unsigned index, int val);
 
-//Finds the corresponding index in the tree and marks it as free
-btree_release(void* mem);
+int b_tree_get(b_tree* tree, unsigned index);
