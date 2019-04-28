@@ -4,6 +4,10 @@
 #define FREE_FLAG (1)
 #define OCCUPIED_FLAG (!(FREE_FLAG))
 
+#define min(a,b) ((a < b)? a : b)
+
+#define buddy_allocator_b_tree_nodes(working_memory) (b_tree_memrequired(working_memory - sizeof(buddy_allocator)))
+
     //NEEDS TO BE MORE CLEAR
 /*
     Computes the amount of levels for which a chunk of <buffer_size> corresponding to
@@ -19,7 +23,7 @@ static unsigned levels_needed(unsigned buffer_size, unsigned min_bucket_size)
 }
 
 /*
-    Given the size of a buffer, computes the amount of levels we can fit in there
+    Given the size of a buffer, computes the amount of levels we can fit in there (rounded up)
 */
 
 static unsigned fitting_levels(unsigned working_memory_length)
@@ -72,12 +76,41 @@ void* index_to_address(buddy_allocator* allocator, unsigned index)
 }
 
 /*
-
+    Given a valid <address> in <allocator->buffer>, returns its corresponding
+    index in <b_uddy_allocator_b_tree_address(allocator)>; if <address> is not 
+    valid, returns <allocator->b_tree_length> 
 */
 
 unsigned address_to_index(buddy_allocator* allocator, void* address)
 {
-    return 0;
+    b_tree* tree = buddy_allocator_b_tree_address(allocator);
+    unsigned offset = address - buddy_allocator_b_tree_address(allocator);
+
+    unsigned index = 0;
+    unsigned current_offset = 0;
+    unsigned current_size = allocator->buffer_size;
+    for(; index < allocator->b_tree_length ;)
+    {
+        current_size >>= 1;
+        
+        if((offset == current_offset) && 
+                        (b_tree_get(tree, left_child_index(index)) == FREE_FLAG)
+            return index;
+
+        /*
+            The address is in the left subtree
+        */
+        if(offset < (current_offset + current_size))
+        {
+            index = left_child_index(index);
+        }
+        else
+        {
+            index = right_child_index(index);
+            current_offset += current_size;
+        }
+    }
+    return allocator->b_tree_length;
 }
 
 int buddy_allocator_init(void* working_memory, unsigned working_memory_length,
@@ -111,6 +144,7 @@ int buddy_allocator_init(void* working_memory, unsigned working_memory_length,
     
         allocator->buffer = buffer;
         allocator->buffer_size = buffer_size;
+        allocator->b_tree_length = buddy_allocator_b_tree_nodes(working_memory);
         allocator->levels = fitting_levels(working_memory_length);
 
     /*
@@ -128,23 +162,60 @@ int buddy_allocator_init(void* working_memory, unsigned working_memory_length,
     return error_code;
 }
 
-//It works, but needs to be rewritten. It should be O(levels) but is actually O(2^levels)
+/*
+    It works, but needs to be rewritten. It should be O(levels) but is actually O(2^levels)
+*/
 void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size)
 {
-    unsigned level = levels_needed(allocator->buffer_size, size);
-    return 0;
+    unsigned level = appropriate_level(allocator->buffer_size, size);
+    const b_tree* tree = buddy_allocator_b_tree_address(allocator);
+
+    unsigned lim = min( allocator->b_tree_length, max_index_on_level(level) );
+
+    unsigned u;
+    for(u = 0; u < lim; u++)
+        if(b_tree_get(tree, u) == FREE_FLAG)
+        {
+            unsigned index = u;
+            /*
+                Marking all the above levels as occupied
+            */
+            for(; (parent_index(u) != 0) && 
+                            ( b_tree_get( tree, parent_index(u) ) != OCCUPIED_FLAG); u = parent_index(u))
+                b_tree_put(tree, u, OCCUPIED_FLAG);
+            
+            return index_to_address(allocator, index);
+        }
+    return NOT_ENOUGH_MEMORY(allocator);
 }
 
 //Will probably need to be rewritten as well
 void buddy_allocator_free(buddy_allocator* allocator, void* address)
 {
-    b_tree* tree = buddy_allocator_b_tree_address(allocator);
+    const b_tree* tree = buddy_allocator_b_tree_address(allocator);
     unsigned index = address_to_index(allocator, address);
-    b_tree_put(tree, FREE_FLAG);
 
-    //We could do some clean-up for security reasons here, if needed.
-    //to be included as an option in the next version
+    /*
+        If address_to_index returns an index equal to the length of the tree,
+        then the address was not valid and we do nothing
+    */
+    
+    if(index == allocator->b_tree_length)
+        return;
 
+    b_tree_put(tree, index, FREE_FLAG);
+
+    /*
+        We could do some clean-up for security reasons here, if needed.
+        to be included as an option in the next version
+    */
+
+        //TODO
+
+    /*
+        If both an address and its buddy are now free, then we bring them back together
+        and do the same with their parents
+    */
     while((index) && (tree, sibling_index(index)) == FREE_FLAG))
     {
         index = parent_index(index);
