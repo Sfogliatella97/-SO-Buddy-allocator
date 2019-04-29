@@ -1,23 +1,18 @@
-#ifdef DEBUG_MODE
-#undef DEBUG_MODE
-#endif
-
-#define DEBUG_MODE 1
-
 #include "buddy_allocator.h"
 #include "binary_tree.h"
 
-#if DEBUG_MODE
-#include <stdio.h>
-#endif 
+#include "debug_utilities.h"
 
 #define FREE_FLAG (1)
 #define OCCUPIED_FLAG (!(FREE_FLAG))
 
 #define min(a,b) (((a) < (b))? (a) : (b))
 
+#define buddy_allocator_b_tree_address(allocator) ((allocator) + sizeof(buddy_allocator))
+
 #define buddy_allocator_b_tree_nodes(working_memory_size) \
                 (b_tree_memrequired((working_memory_size) - sizeof(buddy_allocator)))
+
 
     //NEEDS TO BE MORE CLEAR
 /*
@@ -27,16 +22,18 @@
 
 static unsigned levels_needed(unsigned buffer_size, unsigned min_bucket_size)
 {
+
+dbug_n("levels_needed");
+
     unsigned levels = 0;
     while((buffer_size >> (levels+1)) > (min_bucket_size))
         levels++;
 
-#if DEBUG_MODE
-printf("----------------------------------------------------------------------------------\n\
-Function:  levels_needed:\n\tbuffer_size: %u\n\tmin_bucket_size: %u\n\tlevels_needed: %u\n\
-----------------------------------------------------------------------------------\n"
-, buffer_size, min_bucket_size, levels);
-#endif
+dbug_formatted_print("\tbuffer_size: %u\n", buffer_size);
+dbug_formatted_print("\tmin_bucket_size: %u\n", min_bucket_size);
+dbug_formatted_print("\tlevels_needed: %u\n", levels);
+
+dbug_e("levels_needed");
 
     return levels;
 }
@@ -47,16 +44,17 @@ Function:  levels_needed:\n\tbuffer_size: %u\n\tmin_bucket_size: %u\n\tlevels_ne
 
 static unsigned fitting_levels(unsigned working_memory_size)
 {
+
+dbug_n("fitting_levels");
+
     unsigned count= 1;
     while(((1 << count)-1) < working_memory_size)
         count++;
     
-#if DEBUG_MODE
-printf("----------------------------------------------------------------------------------\n\
-Function:  fitting_levels:\n\tworking_memory_size: %u\n\tfitting_levels: %u\n\
-----------------------------------------------------------------------------------\n"
-, working_memory_size, count);
-#endif
+dbug_formatted_print("\tworking_memory_size: %u\n", working_memory_size);
+dbug_formatted_print("\tfitting_levels: %u\n", count);
+
+dbug_e("fitting_levels");
     
     return count;
 }
@@ -68,17 +66,20 @@ Function:  fitting_levels:\n\tworking_memory_size: %u\n\tfitting_levels: %u\n\
 
 static unsigned appropriate_level(buddy_allocator* allocator, unsigned mem_req)
 {
+
+dbug_n("appropriate_level");
+
     unsigned level = 0;
     unsigned chunk_size = allocator->buffer_size;
-    while( ((level + 1) <= allocator->levels ) && ((chunk_size >>= 1) > mem_req))
+    while( ((level + 1) <= allocator->levels ) && 
+           ((chunk_size >>= 1) > mem_req)         )
         level++;
 
-#if DEBUG_MODE
-printf("----------------------------------------------------------------------------------\n\
-Function:  appropriate_level:\n\tallocator->buffer_size: %u\n\tallocator->levels: %u\n\t\
-mem_req: %u\n----------------------------------------------------------------------------------\n"
-, allocator->buffer_size, allocator->levels, mem_req);
-#endif
+dbug_formatted_print("\tallocator->buffer_size: %u\n", allocator->buffer_size);
+dbug_formatted_print("\tallocator->levels: %u\n", allocator->levels);
+dbug_formatted_print("\tmem_req: %u\n", mem_req);
+
+dbug_e("appropriate_level");
 
     return level;
 }
@@ -91,6 +92,9 @@ mem_req: %u\n-------------------------------------------------------------------
 
 void* index2address(buddy_allocator* allocator, unsigned index)
 {
+
+dbug_n("index2address");
+
     /*
         Since we could have <allocator->buffer> which is not a power of 2 * <min_bucket_size>,
         we can't determine the address directly from the index. So we climb up the tree,
@@ -113,12 +117,12 @@ void* index2address(buddy_allocator* allocator, unsigned index)
         if(array_which_child[count]) chunk += chunk_size;
     }
 
-#if DEBUG_MODE
-printf("----------------------------------------------------------------------------------\n\
-Function:  index2address:\n\tallocator->buffer: %p\n\tindex: %u\n\taddress: %p\n\t\
-address - buffer: %d\n----------------------------------------------------------------------------------\n"
-, allocator->buffer, index, chunk, (int)(chunk - ((void*)allocator->buffer)) );
-#endif
+dbug_formatted_print("\tallocator->buffer: %p\n", allocator->buffer);
+dbug_formatted_print("\tindex: %u\n", index);
+dbug_formatted_print("\taddress: %p\n", chunk);
+dbug_formatted_print("\taddress - buffer: %d\n", (int)( chunk - ((void*)buddy_allocator_b_tree_address(allocator)) ));
+
+dbug_e("index2address");
 
     return chunk;
 }
@@ -131,14 +135,15 @@ address - buffer: %d\n----------------------------------------------------------
 
 unsigned address2index(buddy_allocator* allocator, void* address)
 {
+
+dbug_n("address2index");
+
     b_tree* tree = buddy_allocator_b_tree_address(allocator);
     unsigned offset = address - ((void*) buddy_allocator_b_tree_address(allocator));
 
-#if DEBUG_MODE
-printf("----------------------------------------------------------------------------------\n\
-Function:  address2index:\n\tallocator->buffer: %p\n\taddress: %p\n\t\
-offset: %d\n", allocator->buffer, address, (int)(address - ((void*) allocator->buffer)) );
-#endif
+dbug_formatted_print("\tallocator->buffer: %p\n", allocator->buffer);
+dbug_formatted_print("\taddress: %p\n", address);
+dbug_formatted_print("\toffset: %d\n", offset);
 
     unsigned index = 0;
     unsigned current_offset = 0;
@@ -169,26 +174,29 @@ unsigned u = 0;
             current_offset += current_size;
         }
 
-#if DEBUG_MODE
-printf("\tIteration n%u:\n\t\tindex: %u\n\t\tcurrent_offset: %u\n\t\t\
-current_size: %u\n----------------------------------------------------------------------------------\n"
-, u++, index, current_offset, current_size);
-#endif
+dbug_formatted_print("\titeration: %u\n", u++);
+dbug_formatted_print("\tindex: %u\n", index);
+dbug_formatted_print("\tcurrent_offset: %u\n", current_offset);
+dbug_formatted_print("\tcurrent_size: %u\n", current_size);
 
     }
+
+dbug_e("address2index");
+
     return allocator->b_tree_size;
 }
 
 unsigned buddy_allocator_memrequired(unsigned buffer_size, unsigned min_bucket_size)
 {
 
-#if DEBUG_MODE
-printf("----------------------------------------------------------------------------------\n\
-Function:  buddy_allocator_memrequired:\n\tbuffer_size: %u\n\tmin_bucket_size: %u\n\t\
-mem_req: %u\n----------------------------------------------------------------------------------\n"
-, buffer_size, min_bucket_size,(unsigned) (sizeof(buddy_allocator) + 
-        b_tree_complete_memrequired(levels_needed(buffer_size, min_bucket_size))));
-#endif
+dbug_n("buddy_allocator_memrequired");
+
+dbug_formatted_print("\tbuffer_size: %u\n", buffer_size);
+dbug_formatted_print("\tmin_bucket_size: %u\n", min_bucket_size);
+dbug_formatted_print("\tmemreq: %u\n", (unsigned) (sizeof(buddy_allocator) + 
+        b_tree_complete_memrequired( levels_needed(buffer_size, min_bucket_size) ) ) );
+
+dbug_e("buddy_allocator_memrequired");
 
     return sizeof(buddy_allocator) + 
             b_tree_complete_memrequired(levels_needed(buffer_size, min_bucket_size));
@@ -200,12 +208,13 @@ int buddy_allocator_init(void* working_memory, unsigned working_memory_size,
 {
     int error_code = 0;
 
-#if DEBUG_MODE
-printf("----------------------------------------------------------------------------------\n\
-Function:  buddy_allocator_init:\n\tworking_memory: %p\n\tworking_memory_size: %u\n\t\
-buffer: %p\n\tbuffer_size: %u\n\tmin_bucket_size: %u\n", working_memory, 
-working_memory_size, buffer, buffer_size, min_bucket_size);
-#endif
+dbug_n("buddy_allocator_init");
+
+dbug_formatted_print("\tworking_memory: %p\n", working_memory);
+dbug_formatted_print("\tworking_memory_size: %u\n", working_memory_size);
+dbug_formatted_print("\tbuffer: %p\n", buffer);
+dbug_formatted_print("\tbuffer_size: %u\n", buffer_size);
+dbug_formatted_print("\tmin_bucket_size: %u\n", min_bucket_size);
 
     /*
         If there's no room for a buddy_allocator struct in <working_memory>,
@@ -213,15 +222,19 @@ working_memory_size, buffer, buffer_size, min_bucket_size);
     */
 
     if(buffer_size < (sizeof(buddy_allocator) + 1))
+    {
+
+dbug_e("buddy_allocator_init");
+
         return -1;
+    }
 
     /*
         We check if we can fit in <working_memory> a tree big enough to manage
         efficiently the <buffer>, given the minimum workload <min_bucket_size>
     */
 
-    if(buffer_size < sizeof(buddy_allocator) + 
-                                    b_tree_complete_memrequired(levels_needed(buffer_size, min_bucket_size)))
+    if(buffer_size < buddy_allocator_memrequired(buffer_size, min_bucket_size))
         error_code += 1;
 
     /*
@@ -239,11 +252,8 @@ working_memory_size, buffer, buffer_size, min_bucket_size);
         Initializing the binary tree
     */
 
-#if DEBUG_MODE
-printf("\tb_tree_address %p\n\tb_tree_size: %u\n\
-----------------------------------------------------------------------------------\n", 
-buddy_allocator_b_tree_address(allocator), allocator->b_tree_size );
-#endif
+dbug_formatted_print("\tb_tree_address: %p\n", buddy_allocator_b_tree_address(allocator));
+dbug_formatted_print("\tb_tree_size: %u\n", allocator->b_tree_size );
 
     b_tree_init(buddy_allocator_b_tree_address(allocator), allocator->b_tree_size);
 
@@ -252,6 +262,12 @@ buddy_allocator_b_tree_address(allocator), allocator->b_tree_size );
     */
 
     b_tree_put(buddy_allocator_b_tree_address(allocator), 0, FREE_FLAG);
+    
+    unsigned u;
+    for(u = 1; u < allocator->b_tree_size; u++)
+        b_tree_put(buddy_allocator_b_tree_address(allocator), u, OCCUPIED_FLAG);
+
+dbug_e("buddy_allocator_init");
 
     return error_code;
 }
@@ -261,15 +277,16 @@ buddy_allocator_b_tree_address(allocator), allocator->b_tree_size );
 */
 void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size)
 {
+
+dbug_n("buddy_allocator_malloc");
+
     unsigned level = appropriate_level(allocator, size);
     b_tree* tree = buddy_allocator_b_tree_address(allocator);
 
     unsigned lim = min( allocator->b_tree_size, max_index_on_level(level) );
     
-#if DEBUG_MODE
-printf("----------------------------------------------------------------------------------\n\
-Function:  buddy_allocator_malloc:\n\tsize: %u\n\tlimit_index: %u\n", size, lim );
-#endif
+dbug_formatted_print("\tsize: %u\n", size );
+dbug_formatted_print("\tlimit_index: %u\n", lim );
 
     unsigned u;
     for(u = 0; u < lim; u++)
@@ -283,20 +300,18 @@ Function:  buddy_allocator_malloc:\n\tsize: %u\n\tlimit_index: %u\n", size, lim 
             for(; (parent_index(u) != 0) && 
                             ( b_tree_get( tree, parent_index(u) ) != OCCUPIED_FLAG); u = parent_index(u))
                 b_tree_put(tree, u, OCCUPIED_FLAG);
-            
-#if DEBUG_MODE
-printf("Found index: %d\n\tcorresponding address: %p\n\
-----------------------------------------------------------------------------------\n"
-, u, index2address(allocator, index));
-#endif
+
+dbug_formatted_print("\tIndex found: %u\n", u );
+dbug_formatted_print("\tCorresponding address: %p\n", index2address(allocator, index) );
+
+dbug_e("buddy_allocator_malloc");
             
             return index2address(allocator, index);
         }
 
-#if DEBUG_MODE
-printf("\tNot enough memory\n\
-----------------------------------------------------------------------------------\n");
-#endif
+dbug_print("Not enough memory");
+
+dbug_e("buddy_allocator_malloc");
 
     return NOT_ENOUGH_MEMORY(allocator);
 }
@@ -304,17 +319,15 @@ printf("\tNot enough memory\n\
 //Will probably need to be rewritten as well
 void buddy_allocator_free(buddy_allocator* allocator, void* address)
 {
-#if DEBUG_MODE
-printf("----------------------------------------------------------------------------------\n\
-Function:  buddy_allocator_free\t\naddress: %p\n", address);
-#endif
+
+dbug_n("buddy_allocator_free");
+
+dbug_formatted_print("\taddress: %p\n", address );
+
     b_tree* tree = buddy_allocator_b_tree_address(allocator);
     unsigned index = address2index(allocator, address);
 
-#if DEBUG_MODE
-printf("\tcorresponding index: %u\n\
-----------------------------------------------------------------------------------\n", index);
-#endif
+dbug_formatted_print("\tcorresponding index: %u\n", index );
 
     /*
         If address2index returns an index equal to the length of the tree,
@@ -342,4 +355,7 @@ printf("\tcorresponding index: %u\n\
         index = parent_index(index);
         b_tree_put(tree, index, FREE_FLAG);
     }
+
+dbug_e("buddy_allocator_free");
+
 }

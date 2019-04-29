@@ -1,14 +1,37 @@
 #include "binary_tree.h"
 
+#include "debug_utilities.h"
+
+/*
+    Only works if a char is 8 bit
+*/
+
 typedef char bitmap;
+
+char MASK[8] = {
+    1 << 7,
+    1 << 6,
+    1 << 5,
+    1 << 4,
+    1 << 3,
+    1 << 2,
+    1 << 1,
+    1 
+};
 
 unsigned bitmap_memrequired(unsigned size)
 {
+
+dbug_n("bitmap_memrequired");
+
     unsigned base = size >> 3;
-    if(size == (base << 3))
-        return base;
-    else 
-        return (base + 1);
+
+dbug_formatted_print("\tsize: %u\n", size);
+dbug_formatted_print("\tmemrequired: %u\n", ((size == (base << 3))? base : base + 1));
+
+dbug_e("bitmap_memrequired");
+    
+    return ((size == (base << 3))? base : base + 1);
 }
 
 bitmap* bitmap_init(char* mem, unsigned length)
@@ -23,13 +46,13 @@ void bitmap_put(bitmap* map, unsigned index, int val)
 {
     unsigned base = (index >> 3);
     unsigned offset = (index - (base << 3));
-    char MASK = 1 << (7 - offset);
+    char LOCAL_MASK = MASK[offset];
     if(val)
-        map[base] |= MASK;
+        map[base] |= LOCAL_MASK;
     else
     {
-        MASK = ~MASK;
-        map[base] &= MASK;
+        LOCAL_MASK = ~LOCAL_MASK;
+        map[base] &= LOCAL_MASK;
     }
 }
 
@@ -37,9 +60,9 @@ int bitmap_get(bitmap* map, unsigned index)
 {
     unsigned base = index >> 3;
     unsigned offset = index - (base << 3);
-    char MASK = 1 << (7 - offset);
-    char res = map[base] & MASK;
-    return (res == MASK);
+    char LOCAL_MASK = MASK[offset];
+    char res = map[base] & LOCAL_MASK;
+    return (res == LOCAL_MASK);
 }
 
 /*
