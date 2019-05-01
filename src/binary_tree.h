@@ -2,13 +2,17 @@
     Macros to navigate the binary tree
 */
 
-#define is_even(n) (n == ((n >> 1) << 1))
+#define is_even(n) ((n) == (((n) >> 1) << 1))
 
-#define parent_index(index) ((((is_even(index+1))? (index + 1 ) : (index)) << 1) -1)
+#define parent_index(index) ((is_even( (index) +1 )? ( ( (index) +1) >> 1) : ((index) >> 1)) - 1)
 
-#define right_child_index(index) ((index + 1) >> 1)
+#define right_child_index(index) ( ( (index) + 1) << 1)
 
 #define left_child_index(index) (right_child_index(index) -1)
+
+#define sibling_index(index) ( ( is_even((index) + 1) )? ((index) + 1) : ((index) - 1))
+
+#define max_index_on_level(level) ((1 << ((level)+1)) -2)
 
 /*
     The memory (in bytes) required to store a tree of <levels> number of levels,
@@ -16,7 +20,7 @@
     3 means the root, its 2 children and their 4 children, and so on
 */
 
-#define b_tree_complete_memrequired(levels) (b_tree_memrequired((2 << levels)-1))
+#define b_tree_complete_memrequired(levels) (b_tree_memrequired(max_index_on_level(levels) + 1))
 
 /*
     A binary tree with unsigned keys and int values.
@@ -27,10 +31,16 @@
 typedef void b_tree;
 
 /*
+    The number of nodes a tree of size <size> (in bytes) can store
+*/
+
+unsigned b_tree_length(unsigned size);
+
+/*
     The memory (in bytes) required to store a tree with <size> nodes
 */
 
-unsigned b_tree_memrequired(unsigned size);
+unsigned b_tree_memrequired(unsigned length);
 
 /*
     Initializes a binary tree with as many levels as possible
