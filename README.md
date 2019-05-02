@@ -13,8 +13,8 @@ To use this allocator you should:
 
 It is advised that you initialize your buddy_allocator like this:
 
-'''C
-buddy_allocator* allocator;
+
+        buddy_allocator* allocator;
 
         char buffer[buffer_size];
 
@@ -29,4 +29,3 @@ buddy_allocator* allocator;
 
         else 
             allocator = (buddy_allocator*) working_memory;
- '''
