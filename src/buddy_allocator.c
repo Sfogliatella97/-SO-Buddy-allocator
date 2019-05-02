@@ -107,29 +107,33 @@ void* index2address(buddy_allocator* allocator, unsigned index)
         storing into <array_which_child> our path, and then we come back with the address.
     */
     char* chunk = allocator->buffer;
-    unsigned chunk_size = allocator->buffer_size;
+    unsigned chunk_size = allocator->buffer_size >> 1;
 
-    int array_which_child[allocator->levels + 1];
-
-    unsigned count;
-    for(count = 1; index != 0; count++, index = parent_index(index))
-    {
-        array_which_child[count] = (right_child_index(parent_index(index)) == index);
-    }
-
-    dbug_formatted_print("\tallocator->levels: %u\n", allocator->levels);
-
-    for(; count > 0; count--)
-    {
-        chunk_size >>= 1;
-        if(array_which_child[count]) chunk += chunk_size;
-    }
+    int array_which_child[allocator->levels];
 
     dbug_formatted_print("\tallocator->buffer: %p\n", allocator->buffer);
     dbug_formatted_print("\tindex: %u\n", index);
+
+    unsigned ancestor = index;
+    unsigned count;
+    for(count = 0; ancestor != 0; count++, ancestor = parent_index(ancestor))
+        array_which_child[count] = (right_child_index(parent_index(ancestor)) == ancestor);
+    
+    dbug_formatted_print("\tallocator->levels: %u\n", allocator->levels);
+
+    for(; ancestor != index; count--, chunk_size >>= 1)
+    {
+        if(array_which_child[count - 1]) 
+        {
+            chunk += chunk_size;
+            ancestor = right_child_index(ancestor);
+        }
+        else
+            ancestor = left_child_index(ancestor);
+    }
+
     dbug_formatted_print("\taddress: %p\n", chunk);
-    dbug_formatted_print("\taddress - buffer: %d\n", 
-        (int)( ((void*)chunk) - ((void*)buddy_allocator_b_tree_address(allocator)) ));
+    dbug_formatted_print("\taddress - buffer: %d\n", (chunk - allocator->buffer ));
 
     dbug_e("index2address");
 
@@ -146,6 +150,14 @@ unsigned address2index(buddy_allocator* allocator, void* address)
 {
 
     dbug_n("address2index");
+
+    if((address < ((void*)allocator->buffer)) || 
+            (address >= ((void*)(allocator->buffer + allocator->buffer_size)))
+            )
+    {
+        dbug_e("address2index");
+        return allocator->b_tree_length;
+    }
 
     b_tree* tree = buddy_allocator_b_tree_address(allocator);
     unsigned offset = address - ((void*) allocator->buffer);
@@ -166,15 +178,7 @@ unsigned u = 0;
     {
         current_size >>= 1;
         
-        if((offset == current_offset) && 
-                (
-                    (left_child_index(index) >= allocator->b_tree_length) ||
-                    (b_tree_get(tree, left_child_index(index)) == FREE_FLAG)
-                ) &&
-                (
-                    (right_child_index(index) >= allocator->b_tree_length) ||
-                    (b_tree_get(tree, right_child_index(index)) == FREE_FLAG)
-                )     )
+        if((offset == current_offset) &&  (b_tree_get(tree, left_child_index(index)) == FREE_FLAG))
             return index;
 
         /*
@@ -263,6 +267,8 @@ int buddy_allocator_init(void* working_memory, unsigned working_memory_size,
         allocator->buffer_size = buffer_size;
         allocator->b_tree_length = b_tree_length(working_memory_size - sizeof(buddy_allocator));
         allocator->levels = fitting_levels(allocator->b_tree_length);
+        allocator->greatest_free_index = 0;
+        allocator->greatest_free_index_size = buffer_size;
 
     /*
         Initializing the binary tree
@@ -277,11 +283,9 @@ int buddy_allocator_init(void* working_memory, unsigned working_memory_size,
         The whole buffer is free at the beginning
     */
 
-    b_tree_put(buddy_allocator_b_tree_address(allocator), 0, FREE_FLAG);
-    
     unsigned u;
-    for(u = 1; u < allocator->b_tree_length; u++)
-        b_tree_put(buddy_allocator_b_tree_address(allocator), u, OCCUPIED_FLAG);
+    for(u = 0; u < allocator->b_tree_length; u++)
+        b_tree_put(buddy_allocator_b_tree_address(allocator), u, FREE_FLAG);
 
     dbug_formatted_print("\tLevels_needed: %u\n", levels_needed(buffer_size, min_bucket_size));
     dbug_formatted_print("\tFitting levels: %u\n", allocator->levels);
@@ -296,7 +300,7 @@ int buddy_allocator_init(void* working_memory, unsigned working_memory_size,
 */
 void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size)
 {
-
+    
     dbug_n("buddy_allocator_malloc");
 
     unsigned level = appropriate_level(allocator, size);
@@ -315,44 +319,15 @@ void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size)
             b_tree_put(tree, u, OCCUPIED_FLAG);
 
             /*
-                Marking all ancestor nodes as occupied (until we meet an already occupied one)
-            */
-            if(u != 0)
-            {
-                unsigned ancestor = parent_index(u);
-
-                for(; (ancestor != 0) && 
-                        ( b_tree_get( tree, ancestor ) != OCCUPIED_FLAG); ancestor = parent_index(ancestor))
-                    b_tree_put(tree, ancestor, OCCUPIED_FLAG);
-            }
-
-            dbug_formatted_print("\tIndex found: %u\n", u );
-            dbug_formatted_print("\tCorresponding address: %p\n", index2address(allocator, u) );
-            dbug_formatted_print("\tleft_child: %u\n", left_child_index(u));
-
-            /*
                 Getting to the appropriate level
                 (We chose arbitrarily to fill always the left sub-tree first. This doesn't change
                 anything, since every node will be considered by the outer iteration)
             */
             for(;left_child_index(u) <= lim; u = left_child_index(u))
-            {
                 b_tree_put(tree, u, OCCUPIED_FLAG);
-                if(right_child_index(u) < allocator->b_tree_length)
-                    b_tree_put(tree, right_child_index(u), FREE_FLAG);
-            }
-
-            /*
-                We mark its children as free (This will be used by address2index in buddy_allocator_free)
-            */
-
-            if(left_child_index(u) < allocator->b_tree_length) 
-                b_tree_put(tree, left_child_index(u), FREE_FLAG);
-
-            if(right_child_index(u) < allocator->b_tree_length) 
-                b_tree_put(tree, right_child_index(u), FREE_FLAG);
             
-            dbug_formatted_print("\tindex: %u\n", u);
+            dbug_formatted_print("\tIndex found: %u\n", u );
+            dbug_formatted_print("\tCorresponding address: %p\n", index2address(allocator, u) );
 
             dbug_e("buddy_allocator_malloc");
             
@@ -376,6 +351,7 @@ void buddy_allocator_free(buddy_allocator* allocator, void* address)
     dbug_formatted_print("\taddress: %p\n", address );
 
     b_tree* tree = buddy_allocator_b_tree_address(allocator);
+
     unsigned index = address2index(allocator, address);
 
     dbug_formatted_print("\tcorresponding index: %u\n", index );
@@ -388,12 +364,6 @@ void buddy_allocator_free(buddy_allocator* allocator, void* address)
     if(index == allocator->b_tree_length)
         return;
 
-    if(left_child_index(index) < allocator->b_tree_length) 
-        b_tree_put(tree, left_child_index(index), OCCUPIED_FLAG);
-
-    if(right_child_index(index) < allocator->b_tree_length) 
-        b_tree_put(tree, right_child_index(index), OCCUPIED_FLAG);
-
     /*
         We could do some clean-up for security reasons here, if needed.
         to be included as an option in the next version
@@ -405,6 +375,9 @@ void buddy_allocator_free(buddy_allocator* allocator, void* address)
         If both an address and its buddy are now free, then we bring them back together
         and do the same with their parents
     */
+    
+    b_tree_put(tree, index, FREE_FLAG);
+
     for(;(index != 0) && 
             (
             (sibling_index(index) >= allocator->b_tree_length) ||
@@ -412,9 +385,7 @@ void buddy_allocator_free(buddy_allocator* allocator, void* address)
             ); 
             index = parent_index(index)
                 )
-        b_tree_put(tree, sibling_index(index), OCCUPIED_FLAG);
-    
-    b_tree_put(tree, index, FREE_FLAG);
+        b_tree_put(tree, parent_index(index), FREE_FLAG);
 
     dbug_e("buddy_allocator_free");
 

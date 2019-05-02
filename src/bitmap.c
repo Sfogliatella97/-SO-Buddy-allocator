@@ -19,26 +19,35 @@ char MASK[8] = {
     1 
 };
 
-unsigned bitmap_memrequired(unsigned size)
+unsigned bitmap_length(unsigned size)
+{
+    return size << 3;
+}
+
+unsigned bitmap_memrequired(unsigned length)
 {
 
 dbug_n("bitmap_memrequired");
 
-    unsigned base = size >> 3;
+    unsigned base = length >> 3;
 
-dbug_formatted_print("\tsize: %u\n", size);
-dbug_formatted_print("\tmemrequired: %u\n", ((size == (base << 3))? base : base + 1));
+dbug_formatted_print("\tlength: %u\n", length);
+dbug_formatted_print("\tmemrequired: %u\n", ((length == (base << 3))? base : base + 1));
 
 dbug_e("bitmap_memrequired");
     
-    return ((size == (base << 3))? base : base + 1);
+    return ((length == (base << 3))? base : base + 1);
 }
 
 bitmap* bitmap_init(char* mem, unsigned length)
 {
     unsigned u;
-    for(u=0; u < length; u++)
+    unsigned size = length >> 3;
+    for(u=0; u < size; u++)
+    {
         mem[u] = 0;
+        //printf("%u\n", u);
+    }
     return (bitmap*) mem;
 }
 
@@ -72,8 +81,11 @@ int bitmap_get(bitmap* map, unsigned index)
     will optimize it away.
 */
 
-unsigned b_tree_memrequired(unsigned size)
-{ return bitmap_memrequired(size);}
+unsigned b_tree_length(unsigned size)
+{ return bitmap_length(size); }
+
+unsigned b_tree_memrequired(unsigned length)
+{ return bitmap_memrequired(length); }
 
 b_tree* b_tree_init(void* mem, unsigned length) 
 { return (b_tree*) bitmap_init(mem, length); }

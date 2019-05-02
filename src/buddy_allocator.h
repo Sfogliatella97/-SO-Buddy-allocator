@@ -1,4 +1,4 @@
-#define buddy_allocator_b_tree_address(allocator) (allocator + sizeof(buddy_allocator))
+#define NOT_ENOUGH_MEMORY(allocator) ((allocator)->buffer + (allocator)->buffer_size)
 
 /*
     Given an amount (<buffer_size>) of memory (<buffer>) to manage, we do it as follows:
@@ -9,7 +9,10 @@
 typedef struct buddy_allocator_s {
     char* buffer;
     unsigned buffer_size;
+    unsigned b_tree_length;
     unsigned levels;
+    unsigned greatest_free_index;
+    unsigned greatest_free_index_size;
 } buddy_allocator;
 
 /*
@@ -19,14 +22,21 @@ typedef struct buddy_allocator_s {
 
     The typical initialization of this allocator should be:
 
+        buddy_allocator* allocator;
+
         char buffer[buffer_size];
 
         unsigned mem_required = buddy_allocator_memrequired(buffer_size, min_bucket_size);
 
         char working_memory[mem_required];
 
-        buddy_allocator allocator = buddy_allocator_init(working_memory, mem_required
+        int err = buddy_allocator_init(working_memory, mem_required
                                                          buffer, buffer_size, min_bucket_size);
+        
+        if(err == ... //checks on err
+
+        else 
+            allocator = (buddy_allocator*) working_memory;
 */
 
 unsigned buddy_allocator_memrequired(unsigned buffer_size, unsigned min_bucket_size);
@@ -44,13 +54,13 @@ unsigned buddy_allocator_memrequired(unsigned buffer_size, unsigned min_bucket_s
 
    The returned integer stands for:
 
-   -2147483647 : the working_memory_length was not enough to contain fundamental structs:
-        the allocator will not work (segmentation fault, or worse, will occur if you try to use it) 
+    First and last bytes are 1 : the working_memory_size was not enough to contain fundamental structs:
+        the allocator will not work (segmentation fault, or worse, will occur if you try to use it anyway) 
 
     0 : all good
 
         //NEED FURTHER EXPLANATIONS
-    1 : the working_memory_length was not enough to contain the tree:
+    1 : the working_memory_size was not enough to contain the tree:
         the allocator will work, but there won't be as many "little chunks" as required
     
     //TODO
@@ -58,12 +68,19 @@ unsigned buddy_allocator_memrequired(unsigned buffer_size, unsigned min_bucket_s
     (the error code is actually a mask of flags such that: if the most significant bit is 1, the error is
      beyond repair; if it's 0, it works but with some hindrances )
 */
-int buddy_allocator_init(void* working_memory, unsigned working_memory_length,
+int buddy_allocator_init(void* working_memory, unsigned working_memory_siz,
                          char* buffer, unsigned buffer_size,
                          unsigned min_bucket_size);
 
-//Nothing to say here
+/*
+    On successfull call, returns an appropriate address in <allocator->buffer>; 
+    on unsuccessfull call, returns <NOT_ENOUGH_MEMORY(allocator)> (which is always
+    out of <allocator->buffer>)
+*/
 void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size);
 
-//Nothing to say here
+/*
+    On successfull call, makes <address> allocable again:
+    on unsuccessfull call, does nothing
+*/
 void buddy_allocator_free(buddy_allocator* allocator, void* address);
