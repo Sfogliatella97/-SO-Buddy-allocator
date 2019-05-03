@@ -19,7 +19,7 @@ char MASK[8] = {
     1 
 };
 
-unsigned bitmap_length(unsigned size)
+unsigned bitmap_fitting_length(unsigned size)
 {
     return size << 3;
 }
@@ -81,8 +81,8 @@ int bitmap_get(bitmap* map, unsigned index)
     will optimize it away.
 */
 
-unsigned b_tree_length(unsigned size)
-{ return bitmap_length(size); }
+unsigned b_tree_fitting_length(unsigned size)
+{ return bitmap_fitting_length(size); }
 
 unsigned b_tree_memrequired(unsigned length)
 { return bitmap_memrequired(length); }

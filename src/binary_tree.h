@@ -34,7 +34,7 @@ typedef void b_tree;
     The number of nodes a tree of size <size> (in bytes) can store
 */
 
-unsigned b_tree_length(unsigned size);
+unsigned b_tree_fitting_length(unsigned size);
 
 /*
     The memory (in bytes) required to store a tree with <size> nodes
