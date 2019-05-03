@@ -38,25 +38,26 @@ static unsigned levels_needed(unsigned buffer_size, unsigned min_bucket_size)
     Given the size of a buffer, computes the amount of levels we can fit in there (rounded up)
 */
 
-static unsigned fitting_levels(unsigned tree_size)
+static unsigned fitting_levels(unsigned size)
 {
 
     dbug_n("fitting_levels");
+
+    dbug_formatted_print("\tSize: %u", size);
 
     unsigned levels;
     
     for(levels = 0; ; levels++)
     {
-        if(b_tree_complete_memrequired(levels + 1 ) > tree_size)
+        if(b_tree_complete_memrequired(levels + 1 ) > size)
             break;
-        if(b_tree_complete_memrequired(levels + 1) == tree_size)
+        if(b_tree_complete_memrequired(levels + 1) == size)
         {
             levels++;
             break;
         }
     }
     
-    dbug_formatted_print("\ttree_size: %u\n", tree_size);
     dbug_formatted_print("\tfitting_levels: %u\n", levels);
 
     dbug_e("fitting_levels");
@@ -241,7 +242,7 @@ int buddy_allocator_init(void* working_memory, unsigned working_memory_size,
         we return an error code and abort.
     */
 
-    if(buffer_size < (sizeof(buddy_allocator) + 1))
+    if(buffer_size < (sizeof(buddy_allocator) + b_tree_complete_memrequired(1)))
     {
 
     dbug_e("buddy_allocator_init");
@@ -265,8 +266,8 @@ int buddy_allocator_init(void* working_memory, unsigned working_memory_size,
     
         allocator->buffer = buffer;
         allocator->buffer_size = buffer_size;
-        allocator->b_tree_length = b_tree_length(working_memory_size - sizeof(buddy_allocator));
-        allocator->levels = fitting_levels(allocator->b_tree_length);
+        allocator->b_tree_length = b_tree_fitting_length(working_memory_size - sizeof(buddy_allocator));
+        allocator->levels = fitting_levels(working_memory_size - sizeof(buddy_allocator));
         allocator->greatest_free_index = 0;
         allocator->greatest_free_index_size = buffer_size;
 
