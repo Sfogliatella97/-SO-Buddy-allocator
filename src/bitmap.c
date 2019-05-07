@@ -19,6 +19,17 @@ char MASK[8] = {
     1 
 };
 
+char NOT_MASK[8] = {
+    ~ (1 << 7),
+    ~ (1 << 6),
+    ~ (1 << 5),
+    ~ (1 << 4),
+    ~ (1 << 3),
+    ~ (1 << 2),
+    ~ (1 << 1),
+    ~ 1
+};
+
 unsigned bitmap_fitting_length(unsigned size)
 {
     return size << 3;
@@ -33,13 +44,6 @@ unsigned bitmap_memrequired(unsigned length)
 
 bitmap* bitmap_init(char* mem, unsigned length)
 {
-    unsigned u;
-    unsigned size = length >> 3;
-    for(u=0; u < size; u++)
-    {
-        mem[u] = 0;
-        //printf("%u\n", u);
-    }
     return (bitmap*) mem;
 }
 
@@ -47,23 +51,20 @@ void bitmap_put(bitmap* map, unsigned index, int val)
 {
     unsigned base = (index >> 3);
     unsigned offset = (index - (base << 3));
-    char LOCAL_MASK = MASK[offset];
+
     if(val)
-        map[base] |= LOCAL_MASK;
+        map[base] |= MASK[offset];
     else
-    {
-        LOCAL_MASK = ~LOCAL_MASK;
-        map[base] &= LOCAL_MASK;
-    }
+        map[base] &= NOT_MASK[offset];
 }
 
 int bitmap_get(bitmap* map, unsigned index)
 {
     unsigned base = index >> 3;
     unsigned offset = index - (base << 3);
-    char LOCAL_MASK = MASK[offset];
-    char res = map[base] & LOCAL_MASK;
-    return (res == LOCAL_MASK);
+
+    char res = map[base] & MASK[offset];
+    return (res == MASK[offset]);
 }
 
 /*
