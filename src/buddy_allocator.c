@@ -13,7 +13,7 @@
     Returns the address of the binary tree. (It's right after the buddy_allocator struct)
 */
 
-#define buddy_allocator_b_tree_address(allocator) ((allocator) + sizeof(buddy_allocator))
+#define buddy_allocator_b_tree_address(allocator) ( ((char*)(allocator)) + sizeof(buddy_allocator) )
 
 /*
     Returns the lowest level whose memory is still bigger than <size> (Used by malloc)
@@ -200,6 +200,10 @@ int buddy_allocator_init(void* working_memory, unsigned working_memory_size,
     for(u = 0; u < allocator->b_tree_length; u++)
         b_tree_put(buddy_allocator_b_tree_address(allocator), u, FREE_FLAG);
 
+    for(u = 0; u < allocator->b_tree_length; u++)
+        printf("%d", b_tree_get(buddy_allocator_b_tree_address(allocator), u));
+    printf("\ninit\n");
+
     return error_code;
 }
 
@@ -228,17 +232,22 @@ void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size)
         
         if(b_tree_get(tree, u) == FREE_FLAG) 
         {
-
+            dbug_formatted_print("FLAG is: %d\n", b_tree_get(tree, u));
+            b_tree_put(tree, u, OCCUPIED_FLAG);
             /*
                 Getting to the required level
                 (We chose arbitrarily to fill always the left sub-tree first. This doesn't change
                 anything, since every node will be considered by the outer iteration)
             */
             for(;left_child_index(u) <= lim; u = left_child_index(u))
+            {
+                dbug_formatted_print("FLAG is: %d", b_tree_get(tree, u));
                 b_tree_put(tree, u, OCCUPIED_FLAG);
+            }
             
+
             if(u == 383)
-                dbug_formatted_print("383 was %d\n", b_tree_get(tree, u));
+                dbug_formatted_print("\nParent was: %d\n", b_tree_get(tree, u));
 
             b_tree_put(tree, u, OCCUPIED_FLAG);
 

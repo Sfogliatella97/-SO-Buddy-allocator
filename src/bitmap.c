@@ -26,17 +26,9 @@ unsigned bitmap_fitting_length(unsigned size)
 
 unsigned bitmap_memrequired(unsigned length)
 {
-
-dbug_n("bitmap_memrequired");
-
     unsigned base = length >> 3;
-
-dbug_formatted_print("\tlength: %u\n", length);
-dbug_formatted_print("\tmemrequired: %u\n", ((length == (base << 3))? base : base + 1));
-
-dbug_e("bitmap_memrequired");
     
-    return ((length == (base << 3))? base : base + 1);
+    return ( (length == (base << 3))? (base) : (base + 1) );
 }
 
 bitmap* bitmap_init(char* mem, unsigned length)

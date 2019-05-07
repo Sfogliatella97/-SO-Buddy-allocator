@@ -11,8 +11,6 @@ typedef struct buddy_allocator_s {
     unsigned buffer_size;
     unsigned b_tree_length;
     unsigned levels;
-    unsigned greatest_free_index;
-    unsigned greatest_free_index_size;
 } buddy_allocator;
 
 /*
@@ -68,7 +66,7 @@ unsigned buddy_allocator_memrequired(unsigned buffer_size, unsigned min_bucket_s
     (the error code is actually a mask of flags such that: if the most significant bit is 1, the error is
      beyond repair; if it's 0, it works but with some hindrances )
 */
-int buddy_allocator_init(void* working_memory, unsigned working_memory_siz,
+int buddy_allocator_init(void* working_memory, unsigned working_memory_size,
                          char* buffer, unsigned buffer_size,
                          unsigned min_bucket_size);
 
@@ -84,3 +82,8 @@ void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size);
     on unsuccessfull call, does nothing
 */
 void buddy_allocator_free(buddy_allocator* allocator, void* address);
+
+
+void* index2address(buddy_allocator* allocator, unsigned index);
+
+unsigned address2index(buddy_allocator* allocator, void* address);
