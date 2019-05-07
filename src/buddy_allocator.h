@@ -82,8 +82,3 @@ void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size);
     on unsuccessfull call, does nothing
 */
 void buddy_allocator_free(buddy_allocator* allocator, void* address);
-
-
-void* index2address(buddy_allocator* allocator, unsigned index);
-
-unsigned address2index(buddy_allocator* allocator, void* address);
