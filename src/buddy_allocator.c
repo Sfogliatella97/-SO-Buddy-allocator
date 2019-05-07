@@ -69,7 +69,6 @@ static unsigned fitting_levels(unsigned size)
 
 void* index2address(buddy_allocator* allocator, unsigned index)
 {
-    dbug_formatted_print("Index is: %u\n", index);
     /*
         Since we could have <allocator->buffer> which is not a power of 2 * <min_bucket_size>,
         we can't determine the address directly from the index. So we climb up the tree,
@@ -88,8 +87,6 @@ void* index2address(buddy_allocator* allocator, unsigned index)
     for(; count != 0; count--, chunk_size >>= 1)
         if(array_which_child[count - 1]) 
             chunk += chunk_size;
-
-    dbug_formatted_print("Offset is: %ld\n\n", offset(allocator->buffer, chunk));
 
     return chunk;
 }
@@ -200,10 +197,6 @@ int buddy_allocator_init(void* working_memory, unsigned working_memory_size,
     for(u = 0; u < allocator->b_tree_length; u++)
         b_tree_put(buddy_allocator_b_tree_address(allocator), u, FREE_FLAG);
 
-    for(u = 0; u < allocator->b_tree_length; u++)
-        printf("%d", b_tree_get(buddy_allocator_b_tree_address(allocator), u));
-    printf("\ninit\n");
-
     return error_code;
 }
 
@@ -216,8 +209,6 @@ void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size)
     b_tree* tree = buddy_allocator_b_tree_address(allocator);
 
     unsigned lim = min( allocator->b_tree_length - 1, max_index_on_level(level) );
-
-    dbug_formatted_print("memrequired: %u\n", size);
 
     char mem[stack_mem_required(allocator->b_tree_length) >> 1]; //It probably needs way less than
     // <allocator->b_tree_length>. needs to be checked again
@@ -232,7 +223,6 @@ void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size)
         
         if(b_tree_get(tree, u) == FREE_FLAG) 
         {
-            dbug_formatted_print("FLAG is: %d\n", b_tree_get(tree, u));
             b_tree_put(tree, u, OCCUPIED_FLAG);
             /*
                 Getting to the required level
@@ -240,19 +230,11 @@ void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size)
                 anything, since every node will be considered by the outer iteration)
             */
             for(;left_child_index(u) <= lim; u = left_child_index(u))
-            {
-                dbug_formatted_print("FLAG is: %d", b_tree_get(tree, u));
                 b_tree_put(tree, u, OCCUPIED_FLAG);
-            }
             
-
-            if(u == 383)
-                dbug_formatted_print("\nParent was: %d\n", b_tree_get(tree, u));
 
             b_tree_put(tree, u, OCCUPIED_FLAG);
 
-            if(u == 383)
-                dbug_formatted_print("383 is %d\n", b_tree_get(tree, u));
 
             return index2address(allocator, u);
         }
@@ -275,8 +257,6 @@ void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size)
             }
         }
     }
-
-    dbug_formatted_print("index (not valid): %u\n\n", u);
 
     return NOT_ENOUGH_MEMORY(allocator);
 }
@@ -310,12 +290,14 @@ void buddy_allocator_free(buddy_allocator* allocator, void* address)
     
     b_tree_put(tree, index, FREE_FLAG);
 
-    for(;(index != 0) && 
+    for(;(
+            (index != 0) && 
             (
-            (sibling_index(index) >= allocator->b_tree_length) ||
-            (b_tree_get(tree, sibling_index(index)) == FREE_FLAG)
-            ); 
-            index = parent_index(index)
-                )
+                (sibling_index(index) >= allocator->b_tree_length) ||
+                (b_tree_get(tree, sibling_index(index)) == FREE_FLAG)
+            )
+         )
+            ; index = parent_index(index)  )
+                
         b_tree_put(tree, parent_index(index), FREE_FLAG);
 }
