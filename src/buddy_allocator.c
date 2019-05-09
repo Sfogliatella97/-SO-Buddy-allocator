@@ -46,16 +46,7 @@ static unsigned fitting_levels(unsigned size)
 
     unsigned levels;
     
-    for(levels = 0; ; levels++)
-    {
-        if(b_tree_complete_memrequired(levels + 1 ) > size)
-            break;
-        if(b_tree_complete_memrequired(levels + 1) == size)
-        {
-            levels++;
-            break;
-        }
-    }
+    for(levels = 0; b_tree_complete_memrequired(levels + 1 ) <= size ; levels++);
     
     return levels;
 }
@@ -67,7 +58,7 @@ static unsigned fitting_levels(unsigned size)
     This needs to be addressed in the next version.
 */
 
-void* index2address(buddy_allocator* allocator, unsigned index)
+static inline void* index2address(buddy_allocator* allocator, unsigned index)
 {
     /*
         Since we could have <allocator->buffer> which is not a power of 2 * <min_bucket_size>,
@@ -97,7 +88,7 @@ void* index2address(buddy_allocator* allocator, unsigned index)
     valid, returns <allocator->b_tree_length> 
 */
 
-unsigned address2index(buddy_allocator* allocator, void* address)
+static inline unsigned address2index(buddy_allocator* allocator, void* address)
 {
 
     if(( ((char*)address) < allocator->buffer) || 
@@ -105,7 +96,7 @@ unsigned address2index(buddy_allocator* allocator, void* address)
                 ((char*)address) >= (allocator->buffer + allocator->buffer_size)
             )
     )
-        return allocator->b_tree_length; 
+        return allocator->b_tree_length;
 
     b_tree* tree = buddy_allocator_b_tree_address(allocator);
     long int offset = ((char*)address) - allocator->buffer;
@@ -140,7 +131,6 @@ unsigned address2index(buddy_allocator* allocator, void* address)
             current_offset += current_size;
         }
     }
-
     return allocator->b_tree_length;
 }
 
@@ -161,7 +151,7 @@ int buddy_allocator_init(void* working_memory, unsigned working_memory_size,
         we return an error code and abort.
     */
 
-    if(working_memory_size < (sizeof(buddy_allocator) + b_tree_complete_memrequired(1)))
+    if(working_memory_size < buddy_allocator_memrequired(buffer_size, buffer_size))
         return -1;
 
     /*
