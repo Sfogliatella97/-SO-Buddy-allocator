@@ -10,7 +10,7 @@
 #define min(a,b) (((a) < (b))? (a) : (b))
 
 /*
-    Returns the address of the binary tree. (It's right after the buddy_allocator struct)
+    Returns the address of the binary tree. (It's right after the struct buddy_allocator)
 */
 
 #define buddy_allocator_b_tree_address(allocator) ( ((char*)(allocator)) + sizeof(buddy_allocator) )
@@ -200,13 +200,27 @@ void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size)
 
     unsigned lim = min( allocator->b_tree_length - 1, max_index_on_level(level) );
 
-    char mem[stack_mem_required(allocator->b_tree_length) >> 1]; //It probably needs way less than
-    // <allocator->b_tree_length>. needs to be checked again
+    char mem[stack_mem_required(allocator->b_tree_length) >> 1];
 
     stack* stack = stack_init(mem); 
 
     stack_push(stack, 0);
     unsigned u, left_child, right_child;
+
+    /*
+        The tree is such that if a node is <OCCUPIED_FLAG> there can be 2 possibilities:
+        1) Both its children are <FREE_FLAG>: This means that all of the corresponding chunk of memory is allocated
+        2) At least one of its children are <OCCUPIED_FLAG>: This means that a part of the corresponding chunk is allocated.
+          So, if we actually need a smaller node, we should also examine its descendants.
+        
+        Thus, we need to be careful with "free" nodes. In fact, even if a node is <FREE_FLAG>, it could actually be a descendant
+        of a <OCCUPIED_FLAG>, since all of an occupied node's descendants are <FREE_FLAG>. To prevent these nodes from being
+        examined we put the root in a stack and for every node in the stack:
+        1) It is <FREE_FLAG>: We allocate it
+        2) It is <OCCUPIED_FLAG> and at least one of its children is <OCCUPIED_FLAG>: we put both its children on the stack
+        3) IT is <OCCUPIED_FLAG> and both its children are <FREE_FLAG>: we do nothing
+    */
+
     while(!stack_is_empty(stack))
     {
         u = stack_pop(stack);
