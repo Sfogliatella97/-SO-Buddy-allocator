@@ -2,14 +2,48 @@
     A stack of unsigned int values
 */
 
-typedef void stack;
+/*
+    We need define the functions in the header in order for the compiler to inline them properly
+*/
 
-unsigned stack_mem_required(unsigned max_n_elements);
+#define stack_array(stack, index) ( ((unsigned*)( (char*)(stack) + sizeof(stack) ) + index) )
 
-stack* stack_init(char* mem);
+typedef struct stack_s {
+    unsigned head_index;
+    unsigned size;
+} stack;
 
-void stack_push(stack* stack, unsigned val);
+static inline unsigned stack_mem_required(unsigned max_n_elements)
+{
+    return ( sizeof(unsigned) * max_n_elements ) + sizeof(stack);
+}
 
-unsigned stack_pop(stack* stack);
+static inline stack* stack_init(char* mem)
+{
+    stack* s = (stack*) mem;
+    s->head_index = 0;
+    s->size = 0;
+    return s;
+}
 
-int stack_is_empty(stack* stack);
+static inline void stack_push(stack* s, unsigned val)
+{
+    *stack_array(s, s->head_index) = val;
+    s->size++;
+    s->head_index++;
+}
+
+static inline unsigned stack_pop(stack* s)
+{
+    s->size--;
+
+    unsigned val = *stack_array(s, s->head_index - 1);
+    s->head_index--;
+
+    return val;
+}
+
+static inline int stack_is_empty(stack* s)
+{
+    return (s->size == 0);
+}

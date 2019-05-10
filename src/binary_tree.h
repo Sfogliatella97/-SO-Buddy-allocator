@@ -30,31 +30,73 @@
 
 typedef void b_tree;
 
+
+
+typedef char bitmap;
+
+/*
+    Only works if a char is 8 bit
+*/
+#define MASK(offset) (1 << (7 - offset))
+
 /*
     The number of nodes a tree of size <size> (in bytes) can store
 */
 
-unsigned b_tree_fitting_length(unsigned size);
+static inline unsigned b_tree_fitting_length(unsigned size)
+{
+    return ((size) << 3);
+}
 
 /*
     The memory (in bytes) required to store a tree with <size> nodes
 */
 
-unsigned b_tree_memrequired(unsigned length);
+static inline unsigned b_tree_memrequired(unsigned length)
+{
+    unsigned base = length >> 3;
+    
+    return ( (length == (base << 3))? (base) : (base + 1) );
+}
 
 /*
     Initializes a binary tree with as many levels as possible
 */
 
-b_tree* b_tree_init(void* mem, unsigned length);
+static inline b_tree* b_tree_init(void* mem, unsigned length)
+{
+    return (b_tree*) ( (bitmap*)mem );
+}
 
 /*
     Puts <val> at index <index>
 */
-void b_tree_put(b_tree* tree, unsigned index, int val);
+static inline void b_tree_put(b_tree* tree, unsigned index, int val)
+{
+    bitmap* map = (bitmap*) tree;
+    unsigned base = (index >> 3);
+    unsigned offset = (index - (base << 3));
+
+    char m = MASK(offset);
+
+    if(val)
+        map[base] |= m;
+    else
+        map[base] &= ~ m;
+}
 
 /*
     Reads the value at index <index>
 */
 
-int b_tree_get(b_tree* tree, unsigned index);
+static inline int b_tree_get(b_tree* tree, unsigned index)
+{
+    bitmap* map = (bitmap*) tree;
+    unsigned base = index >> 3;
+    unsigned offset = index - (base << 3);
+
+    char m = MASK(offset);
+
+    char res = map[base] & m;
+    return (res == m);
+}
