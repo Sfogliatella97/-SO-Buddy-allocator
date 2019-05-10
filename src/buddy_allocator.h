@@ -1,4 +1,4 @@
-#define NOT_ENOUGH_MEMORY(allocator) ((allocator)->buffer + (allocator)->buffer_size)
+#define NOT_ENOUGH_MEMORY(allocator) ((void*)  ((allocator)->buffer + (allocator)->buffer_size))
 
 /*
     Given an amount (<buffer_size>) of memory (<buffer>) to manage, we do it as follows:
@@ -20,16 +20,15 @@ typedef struct buddy_allocator_s {
 
     The typical initialization of this allocator should be:
 
-        buddy_allocator* allocator;
-
-        char buffer[buffer_size];
+        char buffer[buffer_size]; ( Maybe you should add __attribute__((aligned(64)))), but I'm not sure about that)
 
         unsigned mem_required = buddy_allocator_memrequired(buffer_size, min_bucket_size);
 
         char working_memory[mem_required];
 
-        int err = buddy_allocator_init(working_memory, mem_required
-                                                         buffer, buffer_size, min_bucket_size);
+        buddy_allocator* allocator;
+
+        int err = buddy_allocator_init(allocator, working_memory, mem_required, buffer, buffer_size, min_bucket_size);
         
         if(err == ... //checks on err
 
@@ -57,23 +56,27 @@ unsigned buddy_allocator_memrequired(unsigned buffer_size, unsigned min_bucket_s
 
     0 : all good
 
-        //NEED FURTHER EXPLANATIONS
-    1 : the working_memory_size was not enough to contain the tree:
-        the allocator will work, but there won't be as many "little chunks" as required
+    1 : the working_memory_size was not enough to contain a tree capable of managing chunk of size <min_bucket_size>:
+        the allocator will work, but there will be internal fragmentation
     
-    //TODO
+    (1 << 32) + 1: <working_mem_size> is too small to contain fundamental data structures
 
-    (the error code is actually a mask of flags such that: if the most significant bit is 1, the error is
+    (the error code is such that: if the most significant bit is 1, the error is
      beyond repair; if it's 0, it works but with some hindrances )
 */
-int buddy_allocator_init(void* working_memory, unsigned working_memory_size,
-                         char* buffer, unsigned buffer_size,
+int buddy_allocator_init(buddy_allocator** allocator, void* working_memory, 
+                         unsigned working_memory_size, char* buffer, unsigned buffer_size,
                          unsigned min_bucket_size);
 
 /*
     On successfull call, returns an appropriate address in <allocator->buffer>; 
     on unsuccessfull call, returns <NOT_ENOUGH_MEMORY(allocator)> (which is always
-    out of <allocator->buffer>)
+    out of <allocator->buffer>). Whenever you call this function, you should check its value:
+
+    void* address = buddy_allocator_malloc(allocator, size);
+
+    if(address == NOT_ENOUGH_MEMORY(allocator))
+        //ERROR HANDLING
 */
 void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size);
 
