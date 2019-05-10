@@ -140,8 +140,8 @@ unsigned buddy_allocator_memrequired(unsigned buffer_size, unsigned min_bucket_s
             b_tree_complete_memrequired(required_levels(buffer_size, min_bucket_size));
 }
 
-int buddy_allocator_init(void* working_memory, unsigned working_memory_size,
-                         char* buffer, unsigned buffer_size,
+int buddy_allocator_init(buddy_allocator** allocator, void* working_memory, 
+                         unsigned working_memory_size, char* buffer, unsigned buffer_size,
                          unsigned min_bucket_size)
 {
     int error_code = 0;
@@ -166,26 +166,28 @@ int buddy_allocator_init(void* working_memory, unsigned working_memory_size,
         Initializing a buddy_allocator in <working_memory>
     */
 
-    buddy_allocator* allocator = (buddy_allocator*) working_memory;
+    *allocator = (buddy_allocator*) working_memory;
+
+    buddy_allocator* alloc = *allocator;
     
-        allocator->buffer = buffer;
-        allocator->buffer_size = buffer_size;
-        allocator->b_tree_length = b_tree_fitting_length(working_memory_size - sizeof(buddy_allocator));
-        allocator->levels = fitting_levels(working_memory_size - sizeof(buddy_allocator));
+        alloc->buffer = buffer;
+        alloc->buffer_size = buffer_size;
+        alloc->b_tree_length = b_tree_fitting_length(working_memory_size - sizeof(buddy_allocator));
+        alloc->levels = fitting_levels(working_memory_size - sizeof(buddy_allocator));
 
     /*
         Initializing the binary tree
     */
 
-    b_tree_init(buddy_allocator_b_tree_address(allocator), allocator->b_tree_length);
+    b_tree_init(buddy_allocator_b_tree_address(alloc), alloc->b_tree_length);
 
     /*
         The whole buffer is free at the beginning
     */
 
     unsigned u;
-    for(u = 0; u < allocator->b_tree_length; u++)
-        b_tree_put(buddy_allocator_b_tree_address(allocator), u, FREE_FLAG);
+    for(u = 0; u < alloc->b_tree_length; u++)
+        b_tree_put(buddy_allocator_b_tree_address(alloc), u, FREE_FLAG);
 
     return error_code;
 }
