@@ -179,7 +179,7 @@ static inline unsigned greatest_available_index(buddy_allocator* allocator, unsi
             a stack and for every node in the stack:
             1) It is <FREE_FLAG>: We allocate it
             2) It is <OCCUPIED_FLAG> and at least one of its children is <OCCUPIED_FLAG>: we put both 
-            its children on the stack
+               its children on the stack
             3) IT is <OCCUPIED_FLAG> and both its children are <FREE_FLAG>: we do nothing
         */
 
