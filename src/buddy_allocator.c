@@ -7,6 +7,8 @@
 #define FREE_FLAG (1)
 #define OCCUPIED_FLAG (!(FREE_FLAG))
 
+#define NO_AVAILABLE_INDEX(allocator) ((allocator)->b_tree_length)
+
 #define min(a,b) (((a) < (b))? (a) : (b))
 
 /*
@@ -134,6 +136,67 @@ static inline unsigned address2index(buddy_allocator* allocator, void* address)
     return allocator->b_tree_length;
 }
 
+/*
+    The greatest available index within 0 and lim.
+    If there is no available index, returns NO_AVAILABLE_INDEX(allocator)
+*/
+
+static inline unsigned greatest_available_index(buddy_allocator* allocator, unsigned lim)
+{
+    b_tree* tree = buddy_allocator_b_tree_address(allocator);
+
+    char mem[stack_mem_required(allocator->b_tree_length) >> 1];
+
+    stack* stack = stack_init(mem); 
+
+    stack_push(stack, 0);
+    unsigned u, left_child, right_child;
+
+    /*
+        The tree is such that if a node is <OCCUPIED_FLAG> there can be 2 possibilities:
+        1) Both its children are <FREE_FLAG>: This means that all of the corresponding chunk of memory is allocated
+        2) At least one of its children are <OCCUPIED_FLAG>: This means that a part of the corresponding chunk is allocated.
+          So, if we actually need a smaller node, we should also examine its descendants.
+        
+        Thus, we need to be careful with "free" nodes. In fact, even if a node is <FREE_FLAG>, it could actually be a descendant
+        of a <OCCUPIED_FLAG>, since all of an occupied node's descendants are <FREE_FLAG>. To prevent these nodes from being
+        examined we put the root in a stack and for every node in the stack:
+        1) It is <FREE_FLAG>: We allocate it
+        2) It is <OCCUPIED_FLAG> and at least one of its children is <OCCUPIED_FLAG>: we put both its children on the stack
+        3) IT is <OCCUPIED_FLAG> and both its children are <FREE_FLAG>: we do nothing
+    */
+
+    while(!stack_is_empty(stack))
+    {
+        u = stack_pop(stack);
+        
+        if(b_tree_get(tree, u) == FREE_FLAG) 
+        {
+            return u;
+        }
+        else
+        {
+            left_child = left_child_index(u);
+            right_child = right_child_index(u);
+
+            if( (left_child > lim) || 
+                    ( 
+                        (b_tree_get(tree, left_child) == FREE_FLAG) &&
+                        (b_tree_get(tree, right_child) == FREE_FLAG)
+                    )
+              )
+                continue;
+            else
+            {
+                stack_push(stack, left_child);
+                stack_push(stack, right_child);
+            }
+        }
+    }
+    return NO_AVAILABLE_INDEX(allocator);
+}
+
+
 unsigned buddy_allocator_memrequired(unsigned buffer_size, unsigned min_bucket_size)
 {
     return sizeof(buddy_allocator) + 
@@ -207,43 +270,23 @@ void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size)
     stack* stack = stack_init(mem); 
 
     stack_push(stack, 0);
-    unsigned u, left_child, right_child;
+    unsigned u, left_child, right_child, last_available_index;
 
     /*
-        The tree is such that if a node is <OCCUPIED_FLAG> there can be 2 possibilities:
-        1) Both its children are <FREE_FLAG>: This means that all of the corresponding chunk of memory is allocated
-        2) At least one of its children are <OCCUPIED_FLAG>: This means that a part of the corresponding chunk is allocated.
-          So, if we actually need a smaller node, we should also examine its descendants.
-        
-        Thus, we need to be careful with "free" nodes. In fact, even if a node is <FREE_FLAG>, it could actually be a descendant
-        of a <OCCUPIED_FLAG>, since all of an occupied node's descendants are <FREE_FLAG>. To prevent these nodes from being
-        examined we put the root in a stack and for every node in the stack:
-        1) It is <FREE_FLAG>: We allocate it
-        2) It is <OCCUPIED_FLAG> and at least one of its children is <OCCUPIED_FLAG>: we put both its children on the stack
-        3) IT is <OCCUPIED_FLAG> and both its children are <FREE_FLAG>: we do nothing
+        The reasoning is similar to greatest_available_index(allocator, lim), but this time we search for the last
+        available index. In fact, if we used the greatest, we would waste a lot of memory. For example, if we had a 
+        buffer of 2048 bytes and we called buddy_allocator_malloc(allocator, 1) twice, there wouldn't be room for
+        buddy_allocator(allocator, 1024), even tough there should be
     */
+    last_available_index = NO_AVAILABLE_INDEX(allocator);
 
     while(!stack_is_empty(stack))
     {
         u = stack_pop(stack);
         
         if(b_tree_get(tree, u) == FREE_FLAG) 
-        {
-            b_tree_put(tree, u, OCCUPIED_FLAG);
-            /*
-                Getting to the required level
-                (We chose arbitrarily to fill always the left sub-tree first. This doesn't change
-                anything, since every node will be considered by the outer iteration)
-            */
-            for(;left_child_index(u) <= lim; u = left_child_index(u))
-                b_tree_put(tree, u, OCCUPIED_FLAG);
-            
+            last_available_index = u;
 
-            b_tree_put(tree, u, OCCUPIED_FLAG);
-
-
-            return index2address(allocator, u);
-        }
         else
         {
             left_child = left_child_index(u);
@@ -264,7 +307,28 @@ void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size)
         }
     }
 
-    return NOT_ENOUGH_MEMORY(allocator);
+    if(last_available_index == NO_AVAILABLE_INDEX(allocator))
+        return NOT_ENOUGH_MEMORY(allocator);
+    
+    else
+    {
+        u = last_available_index;
+        b_tree_put(tree, u, OCCUPIED_FLAG);
+        /*
+            Getting to the required level
+            (We chose arbitrarily to fill always the left sub-tree first. This doesn't change
+            anything, since every node will be considered by the outer iteration)
+        */
+        for(;left_child_index(u) <= lim; u = left_child_index(u))
+            b_tree_put(tree, u, OCCUPIED_FLAG);
+            
+
+        b_tree_put(tree, u, OCCUPIED_FLAG);
+
+
+        return index2address(allocator, u);
+    }
+    
 }
 
 //Will probably need to be rewritten as well
@@ -306,4 +370,19 @@ void buddy_allocator_free(buddy_allocator* allocator, void* address)
             ; index = parent_index(index)  )
                 
         b_tree_put(tree, parent_index(index), FREE_FLAG);
+}
+
+unsigned buddy_allocator_available_mem(buddy_allocator* allocator)
+{
+    unsigned u = greatest_available_index(allocator, allocator->b_tree_length - 1);
+
+    if(u == NO_AVAILABLE_INDEX(allocator)) 
+        return 0;
+
+    unsigned size = allocator->buffer_size;
+
+    unsigned count;
+    for(count = 0; u > ( (1 << (count + 1)) - 1 ); count++, size >>= 1 );
+
+    return size;
 }
