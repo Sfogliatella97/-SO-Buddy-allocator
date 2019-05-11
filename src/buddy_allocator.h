@@ -1,16 +1,15 @@
 #define NOT_ENOUGH_MEMORY(allocator) ((void*)  ((allocator)->buffer + (allocator)->buffer_size))
 
 /*
-    Given an amount (<buffer_size>) of memory (<buffer>) to manage, we do it as follows:
-        when required to allocate a certain <amount> of memory, we divide <buffer> in 2^level
-        parts, where level is such that buffer / 2^(level + 1) < <amount> and level <= <levels>.
+    This struct will be placed inside <working_memory> by buddy_allocator_init. The tree
+    takes the whole remaining part of <working_memory>.
 */
 
 typedef struct buddy_allocator_s {
-        char* buffer;
-        unsigned buffer_size;
-        unsigned b_tree_length;
-        unsigned levels;
+        char* buffer;             // Pointer to the managed memory 
+        unsigned buffer_size;     // Size of the managed memory
+        unsigned b_tree_length;   // Length of the binary tree which keeps track of allocated blocks
+        unsigned levels;          // Number of levels of the tree
 } buddy_allocator;
 
 /*
@@ -20,20 +19,20 @@ typedef struct buddy_allocator_s {
 
     The typical initialization of this allocator should be:
 
-        char buffer[buffer_size]; ( Maybe you should add __attribute__((aligned(64)))), but I'm not sure about that)
+            buddy_allocator*   allocator;
+            unsigned           mem_required;
+            int                err;
+    
+            char buffer[buffer_size];
+            char working_memory[mem_required];
 
-        unsigned mem_required = buddy_allocator_memrequired(buffer_size, min_bucket_size);
+            allocator = buddy_allocator_memrequired(buffer_size, min_bucket_size);
+            err       = buddy_allocator_init(allocator, working_memory, mem_required, buffer, buffer_size, min_bucket_size);
+    
+            if(err == ... //checks on err
 
-        char working_memory[mem_required];
-
-        buddy_allocator* allocator;
-
-        int err = buddy_allocator_init(allocator, working_memory, mem_required, buffer, buffer_size, min_bucket_size);
-        
-        if(err == ... //checks on err
-
-        else 
-            allocator = (buddy_allocator*) working_memory;
+            else 
+                ....
 */
 
 unsigned buddy_allocator_memrequired(unsigned buffer_size, unsigned min_bucket_size);
@@ -49,17 +48,21 @@ unsigned buddy_allocator_memrequired(unsigned buffer_size, unsigned min_bucket_s
 
     (the other parameters are self-evident)
 
-   The returned integer stands for:
+    The returned integer stands for:
 
     First and last bytes are 1 : the working_memory_size was not enough to contain fundamental structs:
         the allocator will not work (segmentation fault, or worse, will occur if you try to use it anyway) 
 
-    0 : all good
+        0            : 
+            all good
 
-    1 : the working_memory_size was not enough to contain a tree capable of managing chunk of size <min_bucket_size>:
-        the allocator will work, but there will be internal fragmentation
+        1            : 
+            the working_memory_size was not enough to contain a tree capable 
+            of managing chunk of size <min_bucket_size>: the allocator will work, 
+            but there will be internal fragmentation
     
-    (1 << 32) + 1: <working_mem_size> is too small to contain fundamental data structures
+        (1 << 32) + 1: 
+            <working_mem_size> is too small to contain fundamental data structures
 
     (the error code is such that: if the most significant bit is 1, the error is
      beyond repair; if it's 0, it works but with some hindrances )
@@ -73,15 +76,15 @@ int buddy_allocator_init(buddy_allocator** allocator, void* working_memory,
     on unsuccessfull call, returns <NOT_ENOUGH_MEMORY(allocator)> (which is always
     out of <allocator->buffer>). Whenever you call this function, you should check its value:
 
-    void* address = buddy_allocator_malloc(allocator, size);
+            void* address = buddy_allocator_malloc(allocator, size);
 
-    if(address == NOT_ENOUGH_MEMORY(allocator))
-        //ERROR HANDLING
+            if(address == NOT_ENOUGH_MEMORY(allocator))
+                    //ERROR HANDLING
 */
 void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size);
 
 /*
-    On successfull call, makes <address> allocable again:
+    On successfull call, makes <address> allocatable again;
     on unsuccessfull call, does nothing
 */
 void buddy_allocator_free(buddy_allocator* allocator, void* address);
@@ -90,5 +93,4 @@ void buddy_allocator_free(buddy_allocator* allocator, void* address);
     The biggest available contigous chunk of memory 
     (there could be more memory available, but it would not be not guaranteed to be contigous)
 */
-
 unsigned buddy_allocator_available_mem(buddy_allocator* allocator);
