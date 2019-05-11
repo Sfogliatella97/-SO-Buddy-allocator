@@ -7,10 +7,10 @@
 */
 
 typedef struct buddy_allocator_s {
-    char* buffer;
-    unsigned buffer_size;
-    unsigned b_tree_length;
-    unsigned levels;
+        char* buffer;
+        unsigned buffer_size;
+        unsigned b_tree_length;
+        unsigned levels;
 } buddy_allocator;
 
 /*

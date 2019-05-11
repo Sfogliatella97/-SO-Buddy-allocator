@@ -33,6 +33,7 @@
 static unsigned required_levels(unsigned buffer_size, unsigned min_bucket_size)
 {
         unsigned levels;
+        
         for(levels = 0; ( buffer_size >> (levels + 1) ) >= min_bucket_size ; levels++);
 
         return levels;
@@ -47,7 +48,8 @@ static unsigned fitting_levels(unsigned size)
 
         unsigned levels;
     
-        for(levels = 0; b_tree_complete_memrequired(levels + 1 ) <= size ; levels++);
+        for(levels = 0; b_tree_complete_memrequired(levels + 1 ) <= size ; levels++)
+                ;
     
         return levels;
 }
@@ -61,24 +63,26 @@ static unsigned fitting_levels(unsigned size)
 
 static inline void* index2address(buddy_allocator* allocator, unsigned index)
 {
+        char*    chunk;
+        unsigned chunk_size;
+        unsigned count;
         /*
             Since we could have <allocator->buffer> which is not a power of 2 * <min_bucket_size>,
             we can't determine the address directly from the index. So we climb up the tree,
             storing into <array_which_child> our path, and then we come back with the address.
         */
-        char* chunk = allocator->buffer;
-        unsigned chunk_size = allocator->buffer_size >> 1;
+        chunk      = allocator->buffer;
+        chunk_size = allocator->buffer_size >> 1;
 
         int array_which_child[allocator->levels];
 
-        unsigned count;
         for(count = 0; index != 0; count++, index = parent_index(index))
-        array_which_child[count] = (right_child_index(parent_index(index)) == index);
+                array_which_child[count] = (right_child_index(parent_index(index)) == index);
 
 
         for(; count != 0; count--, chunk_size >>= 1)
-            if(array_which_child[count - 1]) 
-                chunk += chunk_size;
+                if(array_which_child[count - 1]) 
+                        chunk += chunk_size;
 
         return chunk;
 }
@@ -91,50 +95,55 @@ static inline void* index2address(buddy_allocator* allocator, unsigned index)
 
 static inline unsigned address2index(buddy_allocator* allocator, void* address)
 {
+        unsigned index;
+        long int current_offset;
+        long int current_size;
+        long int offset;
+        b_tree*  tree;
 
         if(( ((char*)address) < allocator->buffer) || 
-                (
-                    ((char*)address) >= (allocator->buffer + allocator->buffer_size)
-                )
+            (
+                ((char*)address) >= (allocator->buffer + allocator->buffer_size)
+            )
         )
-            return allocator->b_tree_length;
+                return allocator->b_tree_length;
 
-        b_tree* tree = buddy_allocator_b_tree_address(allocator);
-        long int offset = ((char*)address) - allocator->buffer;
-
-        unsigned index = 0;
-        long int current_offset = 0;
-        long int current_size = allocator->buffer_size;
+        tree           = buddy_allocator_b_tree_address(allocator);
+        offset         = ((char*)address) - allocator->buffer;
+        index          = 0;
+        current_offset = 0;
+        current_size   = allocator->buffer_size;
 
         for(; (index < allocator->b_tree_length) && (b_tree_get(tree, index) == OCCUPIED_FLAG);)
         {
-            current_size >>= 1;
+                current_size >>= 1;
         
-            if((offset == current_offset) && 
+                if((offset == current_offset) && 
                     (
                         (left_child_index(index) >= allocator->b_tree_length) || 
                         (b_tree_get(tree, left_child_index(index)) == FREE_FLAG)
                     )
-            )
-                return index;
+                )
+                        return index;
 
-            if(offset < (current_offset + current_size))
-            {
-                /*
-                    The address is in the left subtree
-                */
-                index = left_child_index(index);
-            }
+                if(offset < (current_offset + current_size))
+                {
+                        /*
+                            The address is in the left subtree
+                        */
+                        index = left_child_index(index);
+                }
             
-            else
-            {
-                /*
-                    It's in the right one
-                */
-                index = right_child_index(index);
-                current_offset += current_size;
-            }
+                else
+                {
+                        /*
+                            It's in the right one
+                        */
+                        index           = right_child_index(index);
+                        current_offset += current_size;
+                }
         }
+
         return allocator->b_tree_length;
 }
 
@@ -145,14 +154,16 @@ static inline unsigned address2index(buddy_allocator* allocator, void* address)
 
 static inline unsigned greatest_available_index(buddy_allocator* allocator, unsigned lim)
 {
-        b_tree* tree = buddy_allocator_b_tree_address(allocator);
+        unsigned u;
+        unsigned left_child;
+        unsigned right_child;
+        b_tree*  tree;
+        stack*   stack;
 
+        tree  = buddy_allocator_b_tree_address(allocator);
         char mem[stack_mem_required(allocator->b_tree_length) >> 1];
-
-        stack* stack = stack_init(mem); 
-
+        stack = stack_init(mem); 
         stack_push(stack, 0);
-        unsigned u, left_child, right_child;
 
         /*
             The tree is such that if a node is <OCCUPIED_FLAG> there can be 2 possibilities:
@@ -174,30 +185,31 @@ static inline unsigned greatest_available_index(buddy_allocator* allocator, unsi
 
         while(!stack_is_empty(stack))
         {
-            u = stack_pop(stack);
+                u = stack_pop(stack);
         
-            if(b_tree_get(tree, u) == FREE_FLAG) 
-                return u;
+                if(b_tree_get(tree, u) == FREE_FLAG) 
+                        return u;
 
-            else
-            {
-                left_child = left_child_index(u);
-                right_child = right_child_index(u);
-
-                if( (left_child > lim) || 
-                        ( 
-                            (b_tree_get(tree, left_child) == FREE_FLAG) &&
-                            (b_tree_get(tree, right_child) == FREE_FLAG)
-                        )
-                )
-                    continue;
                 else
                 {
-                    stack_push(stack, left_child);
-                    stack_push(stack, right_child);
+                        left_child = left_child_index(u);
+                        right_child = right_child_index(u);
+
+                        if( (left_child > lim) || 
+                            ( 
+                                (b_tree_get(tree, left_child) == FREE_FLAG) &&
+                                (b_tree_get(tree, right_child) == FREE_FLAG)
+                            )
+                        )   
+                                continue;
+                        else
+                        {
+                                stack_push(stack, left_child);
+                                stack_push(stack, right_child);
+                        }
                 }
-            }
         }
+
         return NO_AVAILABLE_INDEX(allocator);
 }
 
@@ -212,7 +224,11 @@ int buddy_allocator_init(buddy_allocator** allocator, void* working_memory,
                          unsigned working_memory_size, char* buffer, unsigned buffer_size,
                          unsigned min_bucket_size)
 {
-        int error_code = 0;
+        int              error_code;
+        unsigned         u;
+        buddy_allocator* alloc;
+
+        error_code = 0;
 
         /*
             If there's no room for a buddy_allocator struct in <working_memory>,
@@ -220,7 +236,7 @@ int buddy_allocator_init(buddy_allocator** allocator, void* working_memory,
         */
 
         if(working_memory_size < buddy_allocator_memrequired(buffer_size, buffer_size))
-            return -1;
+                return -1;
 
         /*
             We check if we can fit in <working_memory> a tree big enough to manage
@@ -228,20 +244,19 @@ int buddy_allocator_init(buddy_allocator** allocator, void* working_memory,
         */
 
         if(working_memory_size < buddy_allocator_memrequired(buffer_size, min_bucket_size))
-            error_code += 1;
+                error_code += 1;
 
         /*
             Initializing a buddy_allocator in <working_memory>
         */
 
         *allocator = (buddy_allocator*) working_memory;
-
-        buddy_allocator* alloc = *allocator;
+        alloc      = *allocator;
     
-            alloc->buffer = buffer;
-            alloc->buffer_size = buffer_size;
-            alloc->b_tree_length = b_tree_fitting_length(working_memory_size - sizeof(buddy_allocator));
-            alloc->levels = fitting_levels(working_memory_size - sizeof(buddy_allocator));
+        alloc->buffer        = buffer;
+        alloc->buffer_size   = buffer_size;
+        alloc->b_tree_length = b_tree_fitting_length(working_memory_size - sizeof(buddy_allocator));
+        alloc->levels        = fitting_levels(working_memory_size - sizeof(buddy_allocator));
 
         /*
             Initializing the binary tree
@@ -253,9 +268,8 @@ int buddy_allocator_init(buddy_allocator** allocator, void* working_memory,
             The whole buffer is free at the beginning
         */
 
-        unsigned u;
         for(u = 0; u < alloc->b_tree_length; u++)
-            b_tree_put(buddy_allocator_b_tree_address(alloc), u, FREE_FLAG);
+                b_tree_put(buddy_allocator_b_tree_address(alloc), u, FREE_FLAG);
 
         return error_code;
 }
@@ -265,17 +279,18 @@ int buddy_allocator_init(buddy_allocator** allocator, void* working_memory,
 */
 void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size)
 {
-        unsigned level = best_fit_level(allocator, size);
-        b_tree* tree = buddy_allocator_b_tree_address(allocator);
+        unsigned level;
+        unsigned u;
+        unsigned left_child;
+        unsigned right_child;
+        unsigned last_available_index;
+        unsigned lim;
+        b_tree*  tree;
+        stack*   stack;
 
-        unsigned lim = min( allocator->b_tree_length - 1, max_index_on_level(level) );
-
-        char mem[stack_mem_required(allocator->b_tree_length) >> 1];
-
-        stack* stack = stack_init(mem); 
-
-        stack_push(stack, 0);
-        unsigned u, left_child, right_child, last_available_index;
+        tree  = buddy_allocator_b_tree_address(allocator);
+        level = best_fit_level(allocator, size);
+        lim   = min( allocator->b_tree_length - 1, max_index_on_level(level) );
 
         /*
             The reasoning is similar to greatest_available_index(allocator, lim), but this 
@@ -284,73 +299,77 @@ void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size)
             and we called buddy_allocator_malloc(allocator, 1) twice, 
             buddy_allocator(allocator, 1024) would fail, even tough there should be enough memory.
         */
+
+        char mem[stack_mem_required(allocator->b_tree_length) >> 1];
+        stack = stack_init(mem); 
+        stack_push(stack, 0);
         last_available_index = NO_AVAILABLE_INDEX(allocator);
 
         while(!stack_is_empty(stack))
         {
-            u = stack_pop(stack);
+                u = stack_pop(stack);
         
-            if(b_tree_get(tree, u) == FREE_FLAG) 
-                last_available_index = u;
+                if(b_tree_get(tree, u) == FREE_FLAG) 
+                        last_available_index = u;
 
-            else
-            {
-                left_child = left_child_index(u);
-                right_child = right_child_index(u);
-
-                if( (left_child > lim) || 
-                        ( 
-                            (b_tree_get(tree, left_child) == FREE_FLAG) &&
-                            (b_tree_get(tree, right_child) == FREE_FLAG)
-                        )
-                )
-                    continue;
                 else
                 {
-                    stack_push(stack, left_child);
-                    stack_push(stack, right_child);
+                        left_child = left_child_index(u);
+                        right_child = right_child_index(u);
+
+                        if( (left_child > lim) || 
+                            ( 
+                                (b_tree_get(tree, left_child) == FREE_FLAG) &&
+                                (b_tree_get(tree, right_child) == FREE_FLAG)
+                            )
+                        )
+                                continue;
+                        else
+                        {
+                                stack_push(stack, left_child);
+                                stack_push(stack, right_child);
+                        }
                 }
-            }
         }
 
         if(last_available_index == NO_AVAILABLE_INDEX(allocator))
-            return NOT_ENOUGH_MEMORY(allocator);
+                return NOT_ENOUGH_MEMORY(allocator);
     
         else
         {
-            u = last_available_index;
-            b_tree_put(tree, u, OCCUPIED_FLAG);
-            /*
-                Getting to the required level
-                (We chose arbitrarily to fill always the left sub-tree first. This doesn't change
-                anything, since every node will be considered by the outer iteration)
-            */
-            for(;left_child_index(u) <= lim; u = left_child_index(u))
+                u = last_available_index;
                 b_tree_put(tree, u, OCCUPIED_FLAG);
+                /*
+                    Getting to the required level
+                    (We chose arbitrarily to fill always the left sub-tree first. This doesn't change
+                    anything, since every node will be considered by the outer iteration)
+                */
+                for(;left_child_index(u) <= lim; u = left_child_index(u))
+                        b_tree_put(tree, u, OCCUPIED_FLAG);
             
 
-            b_tree_put(tree, u, OCCUPIED_FLAG);
+                b_tree_put(tree, u, OCCUPIED_FLAG);
 
 
-            return index2address(allocator, u);
+                return index2address(allocator, u);
         }
-    
 }
 
 //Will probably need to be rewritten as well
 void buddy_allocator_free(buddy_allocator* allocator, void* address)
 {
-        b_tree* tree = buddy_allocator_b_tree_address(allocator);
+        b_tree*  tree;
+        unsigned index;
 
-        unsigned index = address2index(allocator, address);
-
+        tree  = buddy_allocator_b_tree_address(allocator);
+        index = address2index(allocator, address);
         /*
             If address2index returns an index equal to the length of the tree,
             then the address was not valid and we do nothing
         */
     
         if(index == allocator->b_tree_length)
-            return;
+                return;
 
         /*
             We could do some clean-up for security reasons here, if needed.
@@ -372,23 +391,27 @@ void buddy_allocator_free(buddy_allocator* allocator, void* address)
                     (sibling_index(index) >= allocator->b_tree_length) ||
                     (b_tree_get(tree, sibling_index(index)) == FREE_FLAG)
                 )
-            )
-                ; index = parent_index(index)  )
-                
-            b_tree_put(tree, parent_index(index), FREE_FLAG);
+            ); index = parent_index(index)  )
+
+                b_tree_put(tree, parent_index(index), FREE_FLAG);
 }
 
 unsigned buddy_allocator_available_mem(buddy_allocator* allocator)
 {
-        unsigned u = greatest_available_index(allocator, allocator->b_tree_length - 1);
+        unsigned u;
+        unsigned count;
+        unsigned size;
+
+        u = greatest_available_index(allocator, allocator->b_tree_length - 1);
+
 
         if(u == NO_AVAILABLE_INDEX(allocator)) 
-            return 0;
+                return 0;
 
-        unsigned size = allocator->buffer_size;
+        size = allocator->buffer_size;
 
-        unsigned count;
-        for(count = 0; u > ( (1 << (count + 1)) - 1 ); count++, size >>= 1 );
+        for(count = 0; u > ( (1 << (count + 1)) - 1 ); count++, size >>= 1 )
+                ;
 
         return size;
 }

@@ -9,8 +9,8 @@
 #define stack_array(stack, index) ( ((unsigned*)( (char*)(stack) + sizeof(stack) ) + index) )
 
 typedef struct stack_s {
-    unsigned head_index;
-    unsigned size;
+        unsigned head_index;
+        unsigned size;
 } stack;
 
 static inline unsigned stack_mem_required(unsigned max_n_elements)
@@ -20,9 +20,12 @@ static inline unsigned stack_mem_required(unsigned max_n_elements)
 
 static inline stack* stack_init(char* mem)
 {
-        stack* s = (stack*) mem;
+        stack* s;
+        
+        s             = (stack*) mem;
         s->head_index = 0;
-        s->size = 0;
+        s->size       = 0;
+        
         return s;
 }
 
