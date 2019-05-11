@@ -15,35 +15,35 @@ typedef struct stack_s {
 
 static inline unsigned stack_mem_required(unsigned max_n_elements)
 {
-    return ( sizeof(unsigned) * max_n_elements ) + sizeof(stack);
+        return ( sizeof(unsigned) * max_n_elements ) + sizeof(stack);
 }
 
 static inline stack* stack_init(char* mem)
 {
-    stack* s = (stack*) mem;
-    s->head_index = 0;
-    s->size = 0;
-    return s;
+        stack* s = (stack*) mem;
+        s->head_index = 0;
+        s->size = 0;
+        return s;
 }
 
 static inline void stack_push(stack* s, unsigned val)
 {
-    *stack_array(s, s->head_index) = val;
-    s->size++;
-    s->head_index++;
+        *stack_array(s, s->head_index) = val;
+        s->size++;
+        s->head_index++;
 }
 
 static inline unsigned stack_pop(stack* s)
 {
-    s->size--;
+        s->size--;
 
-    unsigned val = *stack_array(s, s->head_index - 1);
-    s->head_index--;
+        unsigned val = *stack_array(s, s->head_index - 1);
+        s->head_index--;
 
-    return val;
+        return val;
 }
 
 static inline int stack_is_empty(stack* s)
 {
-    return (s->size == 0);
+        return (s->size == 0);
 }

@@ -45,7 +45,7 @@ typedef char bitmap;
 
 static inline unsigned b_tree_fitting_length(unsigned size)
 {
-    return ((size) << 3);
+        return ((size) << 3);
 }
 
 /*
@@ -54,9 +54,9 @@ static inline unsigned b_tree_fitting_length(unsigned size)
 
 static inline unsigned b_tree_memrequired(unsigned length)
 {
-    unsigned base = length >> 3;
+        unsigned base = length >> 3;
     
-    return ( (length == (base << 3))? (base) : (base + 1) );
+        return ( (length == (base << 3))? (base) : (base + 1) );
 }
 
 /*
@@ -65,7 +65,7 @@ static inline unsigned b_tree_memrequired(unsigned length)
 
 static inline b_tree* b_tree_init(void* mem, unsigned length)
 {
-    return (b_tree*) ( (bitmap*)mem );
+        return (b_tree*) ( (bitmap*)mem );
 }
 
 /*
@@ -73,16 +73,17 @@ static inline b_tree* b_tree_init(void* mem, unsigned length)
 */
 static inline void b_tree_put(b_tree* tree, unsigned index, int val)
 {
-    bitmap* map = (bitmap*) tree;
-    unsigned base = (index >> 3);
-    unsigned offset = (index - (base << 3));
+        bitmap* map = (bitmap*) tree;
+        unsigned base = (index >> 3);
+        unsigned offset = (index - (base << 3));
 
-    char m = MASK(offset);
+        char m = MASK(offset);
 
-    if(val)
-        map[base] |= m;
-    else
-        map[base] &= ~ m;
+        if(val)
+            map[base] |= m;
+
+        else
+            map[base] &= ~ m;
 }
 
 /*
@@ -91,12 +92,12 @@ static inline void b_tree_put(b_tree* tree, unsigned index, int val)
 
 static inline int b_tree_get(b_tree* tree, unsigned index)
 {
-    bitmap* map = (bitmap*) tree;
-    unsigned base = index >> 3;
-    unsigned offset = index - (base << 3);
+        bitmap* map = (bitmap*) tree;
+        unsigned base = index >> 3;
+        unsigned offset = index - (base << 3);
 
-    char m = MASK(offset);
+        char m = MASK(offset);
 
-    char res = map[base] & m;
-    return (res == m);
+        char res = map[base] & m;
+        return (res == m);
 }
