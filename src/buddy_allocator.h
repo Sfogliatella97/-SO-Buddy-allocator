@@ -85,3 +85,10 @@ void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size);
     on unsuccessfull call, does nothing
 */
 void buddy_allocator_free(buddy_allocator* allocator, void* address);
+
+/*
+    The biggest available contigous chunk of memory 
+    (there could be more memory available, but would not be not guaranteed to be contigous)
+*/
+
+unsigned buddy_allocator_available_mem(buddy_allocator* allocator);
