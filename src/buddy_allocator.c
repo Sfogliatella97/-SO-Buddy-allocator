@@ -77,7 +77,7 @@ static inline void* index2address(buddy_allocator* allocator, unsigned index)
         int array_which_child[allocator->levels];
 
         for(count = 0; index != 0; count++, index = parent_index(index))
-                array_which_child[count] = (right_child_index(parent_index(index)) == index);
+                array_which_child[count] = !(is_even(index+1));
 
 
         for(; count != 0; count--, chunk_size >>= 1)
