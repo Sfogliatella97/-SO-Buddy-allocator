@@ -236,7 +236,7 @@ int buddy_allocator_init(buddy_allocator** allocator, void* working_memory,
         */
 
         if(working_memory_size < buddy_allocator_memrequired(buffer_size, buffer_size))
-                return -1;
+                return (1 << 32) + 1;
 
         /*
             We check if we can fit in <working_memory> a tree big enough to manage
