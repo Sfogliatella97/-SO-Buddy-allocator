@@ -300,7 +300,7 @@ void* buddy_allocator_malloc(buddy_allocator* allocator, unsigned size)
             buddy_allocator(allocator, 1024) would fail, even tough there should be enough memory.
         */
 
-        char mem[stack_mem_required(allocator->b_tree_length) >> 1];
+        char mem[stack_mem_required( (allocator->b_tree_length) >> 1)];
         stack = stack_init(mem); 
         stack_push(stack, 0);
         last_available_index = NO_AVAILABLE_INDEX(allocator);
