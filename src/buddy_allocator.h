@@ -22,17 +22,19 @@ typedef struct buddy_allocator_s {
             buddy_allocator*   allocator;
             unsigned           mem_required;
             int                err;
-    
-            char buffer[buffer_size];
-            char working_memory[mem_required];
+            char               buffer[buffer_size];
+            char               working_memory[];
 
-            allocator = buddy_allocator_memrequired(buffer_size, min_bucket_size);
+            memrequired = buddy_allocator_memrequired(buffer_size, min_bucket_size);
+            
+            working_memory[memrequired];
+            
             err       = buddy_allocator_init(allocator, working_memory, mem_required, buffer, buffer_size, min_bucket_size);
     
             if(err == ... //checks on err
 
             else 
-                ....
+               ...
 */
 
 unsigned buddy_allocator_memrequired(unsigned buffer_size, unsigned min_bucket_size);
