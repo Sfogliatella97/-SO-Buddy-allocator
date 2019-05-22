@@ -77,7 +77,7 @@ static inline void* index2address(buddy_allocator* allocator, unsigned index)
         int array_which_child[allocator->levels];
 
         for(count = 0; index != 0; count++, index = parent_index(index))
-                array_which_child[count] = (right_child_index(parent_index(index)) == index);
+                array_which_child[count] = !(is_even(index+1));
 
 
         for(; count != 0; count--, chunk_size >>= 1)
@@ -143,7 +143,6 @@ static inline unsigned address2index(buddy_allocator* allocator, void* address)
                         current_offset += current_size;
                 }
         }
-
         return allocator->b_tree_length;
 }
 
@@ -195,7 +194,7 @@ static inline unsigned greatest_available_index(buddy_allocator* allocator, unsi
                         left_child = left_child_index(u);
                         right_child = right_child_index(u);
 
-                        if( (left_child > lim) || 
+                        if( (left_child > lim) || (right_child > lim) ||
                             ( 
                                 (b_tree_get(tree, left_child) == FREE_FLAG) &&
                                 (b_tree_get(tree, right_child) == FREE_FLAG)
