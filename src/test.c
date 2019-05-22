@@ -148,10 +148,10 @@ int main()
         //------------------------------------------------------------------------------------------------------------
 
         printf("We check that there are no memory leaks: If a user allocates some memory and then release it\n"
-               "correctly, no memory should \"disappear\"(This could happen if buddy_allocator_free() didn't "
-               "restore correctly the bitmap\n\n");
+               " correctly, no memory should \"disappear\"(This could happen if buddy_allocator_free() didn't "
+               "restore correctly the bitmap)\n\n");
 
-        printf("> Creating allocator with buffer size %u and min bucket size %u:\n", TEST_2_BUFFER_SIZE, TEST_2_MINBUCKET_SIZE);
+        printf("Creating allocator with buffer size %u and min bucket size %u:\n", TEST_2_BUFFER_SIZE, TEST_2_MINBUCKET_SIZE);
 
         working_mem_size_test_2 = buddy_allocator_memrequired(TEST_2_BUFFER_SIZE, TEST_2_MINBUCKET_SIZE);
 
@@ -166,17 +166,22 @@ int main()
 
         char* addresses_2[TEST_2_BUFFER_SIZE / TEST_2_MINBUCKET_SIZE];
 
+
         for( u = 0; u < 15; u++)
         {
-            printf("%u\n", u);
+                printf("Iteration n: %u\n", u);
+                
                 for(j = 0; j < TEST_2_BUFFER_SIZE / TEST_2_MINBUCKET_SIZE; j++)
                 {
                         addresses_2[j] = buddy_allocator_malloc(allocator_test_2, TEST_2_MINBUCKET_SIZE);
                         if(addresses_2 == NOT_ENOUGH_MEMORY(allocator_test_2)) failure("Error: not enough memory, when there should be");
                 }
-            
+
+                printf("allocating...\n");
                 for(; j != 0; j--)
                         buddy_allocator_free(allocator_test_2, addresses_2[j-1]);
+
+                printf("deallocating...\n\n");
 
                 if(buddy_allocator_available_mem(allocator_test_2) != TEST_2_BUFFER_SIZE) failure("Error: memory leak");
             
