@@ -5,6 +5,9 @@ CFLAGS = -O3
 buddy_allocator: $(DEPS)
 	gcc $(SRC) -c $(CFLAGS)
 
+test: $(DEPS) src/test.c
+	gcc $(SRC) -o test -Wall src/test.c
+
 .PHONY: clean
 
 clean:
